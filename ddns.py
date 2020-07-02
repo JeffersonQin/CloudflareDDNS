@@ -9,7 +9,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget,QSystemTrayIcon,QAction,QMenu,qApp,QMessageBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtWidgets import QFormLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QTextEdit
+from PyQt5.QtWidgets import QFormLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QTextEdit, QCheckBox
 import threading
 from appdata import AppDataPaths
 
@@ -18,6 +18,9 @@ my_ip = ""
 X_AUTH_KEY = ""
 ZONE_ID = ""
 EMAIL = ""
+DNS_RECORD_NAME = ""
+WEBSITE_URL = ""
+AUTO_START = False
 
 headers = {
         "X-Auth-Email": EMAIL,
@@ -39,6 +42,9 @@ if os.path.exists(app_data_dir):
             X_AUTH_KEY = file_data["X_AUTH_KEY"]
             ZONE_ID = file_data["ZONE_ID"]
             EMAIL = file_data["EMAIL"]
+            DNS_RECORD_NAME = file_data["DNS_RECORD_NAME"]
+            WEBSITE_URL = file_data["WEBSITE_URL"]
+            AUTO_START = bool(file_data["AUTO_START"])
 else:
     os.makedirs(app_data_dir)
 
@@ -56,12 +62,17 @@ class update_Thread(QtCore.QThread):
         global headers
         global started_flag
         global tp
+        global DNS_RECORD_NAME
+        global WEBSITE_URL
+        global AUTO_START
         if started_flag == False:
             X_AUTH_KEY = le1.text()
             ZONE_ID = le2.text()
             EMAIL = le3.text()
+            DNS_RECORD_NAME = le4.text()
+            WEBSITE_URL = le5.text()
 
-            json_data = {"X_AUTH_KEY": X_AUTH_KEY, "ZONE_ID": ZONE_ID, "EMAIL": EMAIL}
+            json_data = {"X_AUTH_KEY": X_AUTH_KEY, "ZONE_ID": ZONE_ID, "EMAIL": EMAIL, "DNS_RECORD_NAME": DNS_RECORD_NAME, "WEBSITE_URL": WEBSITE_URL, "AUTO_START": AUTO_START}
             with open(app_data_dir + "\\config.ini", 'w') as f:
                 json.dump(json_data, f)
             
@@ -87,8 +98,9 @@ class update_Thread(QtCore.QThread):
             except:
                 tp.showMessage("Error", "IP Update Error", icon=3)
                 tp.messageClicked.connect(lambda: w.show())
-                error_flag = True
                 self.update_text.emit(str(time.strftime("IP UPDATE ERROR")))
+                error_flag = False
+                continue
 
 
             if new_ip != my_ip or error_flag:
@@ -99,11 +111,14 @@ class update_Thread(QtCore.QThread):
                     result_arr = res["result"]
                     site_id = ""
                     for result in result_arr:
+                        print(result)
                         if result["type"] == 'A':
-                            site_id = result["id"]
+                            if str(result["name"]) == WEBSITE_URL:
+                                site_id = result["id"]
+                                break
                     response = requests.put(url="https://api.cloudflare.com/client/v4/zones/" + ZONE_ID + "/dns_records/" + str(site_id), 
                                             headers=headers, 
-                                            data='{"type":"A","name":"home","content":"' + my_ip + '","ttl":1,"proxied":false}')
+                                            data='{"type":"A","name":"' + DNS_RECORD_NAME + '","content":"' + my_ip + '","ttl":1,"proxied":false}')
                     res = json.loads(response.text)
                     if res["success"]:
                         self.update_text.emit("UPLOAD SUCCESS")
@@ -118,7 +133,7 @@ class update_Thread(QtCore.QThread):
                     tp.showMessage("Error", "Unknown Exception", icon=3)
                     tp.messageClicked.connect(lambda: w.show())
                     error_flag = True
-            time.sleep(60)
+            time.sleep(1)
 
         tp.showMessage("CloudFlareDDNS", "服务成功终止", icon = 0)
         started_flag = False
@@ -184,6 +199,10 @@ if __name__ == '__main__':
     le2.setEchoMode(QLineEdit.Password)
     lb3 = QLabel('Email')
     le3 = QLineEdit(EMAIL)
+    lb4 = QLabel('DNS_RECORD_NAME')
+    le4 = QLineEdit(DNS_RECORD_NAME)
+    lb5 = QLabel('WEBSITE_URL')
+    le5 = QLineEdit(WEBSITE_URL)
 
     text_panel = QTextEdit()
 
@@ -193,7 +212,8 @@ if __name__ == '__main__':
     def stop_ddns():
         global thread_update_text_qt
         global started_flag
-        thread_update_text_qt.terminate
+        thread_update_text_qt.terminate()
+        thread_update_text_qt.quit()
         started_flag = False
         tp.showMessage("CloudFlareDDNS", "服务成功终止", icon = 0)
 
@@ -214,11 +234,30 @@ if __name__ == '__main__':
     hbox.addWidget(button_stop)
 
 
+    autoStart_checkbox = QCheckBox("Auto Start DDNS when program starts")
+    
+    if AUTO_START:
+        autoStart_checkbox.setChecked(True)
+        start_ddns()
+
+    def auto_started_changed():
+        print(autoStart_checkbox.isChecked())
+        AUTO_START = autoStart_checkbox.isChecked()
+        json_data = {"X_AUTH_KEY": X_AUTH_KEY, "ZONE_ID": ZONE_ID, "EMAIL": EMAIL, "DNS_RECORD_NAME": DNS_RECORD_NAME, "WEBSITE_URL": WEBSITE_URL, "AUTO_START": AUTO_START}
+        with open(app_data_dir + "\\config.ini", 'w') as f:
+            json.dump(json_data, f)
+
+    autoStart_checkbox.stateChanged.connect(auto_started_changed)
+
+
     form.addRow(lb1, le1)
     form.addRow(lb2, le2)
     form.addRow(lb3, le3)
+    form.addRow(lb4, le4)
+    form.addRow(lb5, le5)
     form.addRow(hbox)
-    form.addWidget(text_panel)
+    form.addRow(autoStart_checkbox)
+    form.addRow(text_panel)
 
     w.setLayout(form)
 
