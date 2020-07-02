@@ -133,7 +133,7 @@ class update_Thread(QtCore.QThread):
                     tp.showMessage("Error", "Unknown Exception", icon=3)
                     tp.messageClicked.connect(lambda: w.show())
                     error_flag = True
-            time.sleep(1)
+            time.sleep(60)
 
         tp.showMessage("CloudFlareDDNS", "服务成功终止", icon = 0)
         started_flag = False
