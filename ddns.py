@@ -316,6 +316,8 @@ if __name__ == '__main__':
         # print("系统托盘的图标被点击了")
     tp.activated.connect(act)
     
+    tp.showMessage("CloudFlareDDNS", "程序成功启动", icon = 0)
+    
     # sys为了调用sys.exit(0)退出程序
     # 最后,我们进入应用的主循环.事件处理从这里开始.主循环从窗口系统接收事件,分派它们到应用窗口.如果我们调用了exit()方法或者主窗口被销毁,则主循环结束.sys.exit()方法确保一个完整的退出.环境变量会被通知应用是如何结束的.
     # exec_()方法是有一个下划线的.这是因为exec在Python中是关键字.因此,用exec_()代替.

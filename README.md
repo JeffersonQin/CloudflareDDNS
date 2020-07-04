@@ -16,3 +16,9 @@ Author: Haoyun Qin
 - WEBSITE_URL: URL for your website.
 
 Exact Descriptions and official APIs: https://api.cloudflare.com/
+
+## PyInstaller parameters
+
+```shell
+pyinstaller ddns.py -w --clean --hidden-import PyQt5.sip -F
+```
