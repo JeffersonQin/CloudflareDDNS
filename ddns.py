@@ -29,6 +29,7 @@ headers = {
 }
 
 started_flag = False
+stop_flag = False
 
 paths = AppDataPaths('CloudFlareDDNS')
 
@@ -54,13 +55,15 @@ else:
 class update_Thread(QtCore.QThread):
 
     update_text = QtCore.pyqtSignal(str)
-    
+    update_wait_console_text = QtCore.pyqtSignal(str)
+
     def run(self):
         global X_AUTH_KEY
         global ZONE_ID
         global EMAIL
         global headers
         global started_flag
+        global stop_flag
         global tp
         global DNS_RECORD_NAME
         global WEBSITE_URL
@@ -92,6 +95,9 @@ class update_Thread(QtCore.QThread):
 
         error_flag = False
         while True:
+            if stop_flag == True:
+                stop_flag = False
+                return
             try:
                 new_ip = requests.get(url='http://ip.42.pl/raw').text
                 self.update_text.emit(str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + " " + new_ip))
@@ -102,6 +108,9 @@ class update_Thread(QtCore.QThread):
                 error_flag = False
                 continue
 
+            if stop_flag == True:
+                stop_flag = False
+                return
 
             if new_ip != my_ip or error_flag:
                 my_ip = new_ip
@@ -133,7 +142,14 @@ class update_Thread(QtCore.QThread):
                     tp.showMessage("Error", "Unknown Exception", icon=3)
                     tp.messageClicked.connect(lambda: w.show())
                     error_flag = True
-            time.sleep(60)
+            
+            for i in range(0, 60):
+                if stop_flag == True:
+                    stop_flag = False
+                    self.update_wait_console_text.emit("Stopping Success")
+                    return
+                self.update_wait_console_text.emit("Thread Waiting for next update... (" + str(60 - i) + " s)")
+                time.sleep(1)
 
         tp.showMessage("CloudFlareDDNS", "服务成功终止", icon = 0)
         started_flag = False
@@ -145,6 +161,7 @@ class update_Thread(QtCore.QThread):
 if __name__ == '__main__':
 
     global tp
+    global le_console_wait
     thread_update_text_qt = None
 
     last_update_time = 'None'
@@ -203,6 +220,7 @@ if __name__ == '__main__':
     le4 = QLineEdit(DNS_RECORD_NAME)
     lb5 = QLabel('WEBSITE_URL')
     le5 = QLineEdit(WEBSITE_URL)
+    le_console_wait = QLineEdit()
 
     text_panel = QTextEdit()
 
@@ -210,17 +228,18 @@ if __name__ == '__main__':
     thread_update_text_qt.update_text.connect(text_panel.append)
     
     def stop_ddns():
-        global thread_update_text_qt
         global started_flag
-        thread_update_text_qt.terminate()
-        thread_update_text_qt.quit()
+        global tp
+        global stop_flag
         started_flag = False
+        stop_flag = True
         tp.showMessage("CloudFlareDDNS", "服务成功终止", icon = 0)
 
     def start_ddns():
-        global thread_update_text_qt, text_panel
+        global thread_update_text_qt, text_panel, le_console_wait
         thread_update_text_qt = update_Thread(w)
         thread_update_text_qt.update_text.connect(text_panel.append)
+        thread_update_text_qt.update_wait_console_text.connect(le_console_wait.setText)
         thread_update_text_qt.start()
 
     hbox = QHBoxLayout()
@@ -258,6 +277,7 @@ if __name__ == '__main__':
     form.addRow(hbox)
     form.addRow(autoStart_checkbox)
     form.addRow(text_panel)
+    form.addRow(le_console_wait)
 
     w.setLayout(form)
 
