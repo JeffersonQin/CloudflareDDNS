@@ -144,12 +144,12 @@ class update_Thread(QtCore.QThread):
 					tp.messageClicked.connect(lambda: w.show())
 					error_flag = True
 			
-			for i in range(0, 60):
+			for i in range(0, 1800):
 				if stop_flag == True:
 					stop_flag = False
 					self.update_wait_console_text.emit("Stopping Success")
 					return
-				self.update_wait_console_text.emit("Thread Waiting for next update... (" + str(60 - i) + " s)")
+				self.update_wait_console_text.emit("Thread Waiting for next update... (" + str(1800 - i) + " s)")
 				time.sleep(1)
 
 		tp.showMessage("CloudFlareDDNS", "服务成功终止", icon = 0)
